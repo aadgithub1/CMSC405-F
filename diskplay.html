@@ -31,6 +31,8 @@ The Shaders are still complex but have been simplified slightly.
 <script src="trackball-rotator.js"></script>
 
 <script type="x-shader/x-vertex" id="vshader-source">
+    attribute vec2 a_texCoords;
+    varying vec2 v_texCoords;
     attribute vec3 a_coords;
     attribute vec3 a_normal;
     uniform mat4 modelview;
@@ -43,6 +45,7 @@ The Shaders are still complex but have been simplified slightly.
         gl_Position = projection * eyeCoords;
         v_normal = normalize(a_normal);
         v_eyeCoords = eyeCoords.xyz/eyeCoords.w;
+        v_texCoords = a_texCoords;
     }
 </script>
 
@@ -65,11 +68,13 @@ Notice the light only has 3 properties now -->
         vec4 position;
         vec3 color;
     };
-    uniform MaterialProperties material; // do two-sided lighting, but assume front and back materials are the same
+    uniform MaterialProperties material;
     uniform LightProperties lights[4];
     uniform mat3 normalMatrix;
     varying vec3 v_normal;
     varying vec3 v_eyeCoords;
+    uniform sampler2D u_sampler;
+    varying vec2 v_texCoords;
 
     vec3 lightingEquation( LightProperties light, MaterialProperties material,
     vec3 eyeCoords, vec3 N, vec3 V ) {
@@ -114,6 +119,8 @@ Notice the light only has 3 properties now -->
         }
 
         gl_FragColor = vec4(color,material.diffuseColor.a);
+        vec4 texColor = texture2D(u_sampler, v_texCoords);
+
     }
 </script>
 
@@ -128,15 +135,10 @@ Notice the light only has 3 properties now -->
 
 var gl; // The webgl context.
 
-
-var xval=-0.7;
-var yval=-2.1;
-var kval = 90; // Kick leg start
-
-var a_coords_loc; // Location of the a_coords attribute variable in the shader program.
-var a_normal_loc; // Location of a_normal attribute
+var a_coords_loc; 
+var a_normal_loc;
 var a_texCoords_loc;
-// var texture;
+var texture;
 
 var u_modelview; // Locations for uniform matrices
 var u_projection;
@@ -148,38 +150,29 @@ var movingLightAngle = 0; // Initialize angle for moving light
 var u_material; // An object tolds uniform locations for the material.
 var u_lights; // An array of objects that holds uniform locations for light properties.
 
-var projection = mat4.create(); // projection matrix
-var modelview; // modelview matrix; value comes from rotator
-var normalMatrix = mat3.create(); // matrix, derived from modelview matrix, for transforming normal vectors
+var projection = mat4.create(); 
+var modelview; 
+var normalMatrix = mat3.create(); 
 
-var rotator; // A TrackballRotator to implement rotation by mouse.
+var rotator; 
 
-var frameNumber = 0; // frame number during animation (actually only goes up by 0.5 per frame)
+var frameNumber = 0;
 
-var torus, sphere, cone, cylinder, disk, ring, cube; // basic objects, created using function createModel
+var torus, sphere, cone, cylinder, disk, ring, cube;
 
 var matrixStack = []; // A stack of matrices for implementing hierarchical graphics.
+var currentColor = [1,1,1,1];
 
-var currentColor = [1,1,1,1]; // The current diffuseColor; render() functions in the basic objects set
-// the diffuse color to currentColor when it is called before drawing the object.
-// Other color properties, which don't change often are handled elsewhere.
-
-
-/**
-* Draws the image, which consists of either the "world" or a closeup of the "car".
-*/
 function draw() {
     gl.clearColor(0,0,0,1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-
 
     mat4.perspective(projection, Math.PI/2.5, 1, 1, 50);
     gl.uniformMatrix4fv(u_projection, false, projection );
 
     modelview = rotator.getViewMatrix();
 
-    var radius = 10;  // Adjust as needed
+    var radius = 10;
     var x = radius * Math.cos(movingLightAngle);
     var z = radius * Math.sin(movingLightAngle);
     movingLightPosition = vec3.fromValues(x, 8, z);  // Keep Y coordinate at 8
@@ -193,7 +186,7 @@ function lights() {
 
     var intensityMultiplier = darkMode ? 0.2 : 1.0;  // Reduce intensity in dark mode
 
-    // Directional Light (Sunlight)
+    // Directional Light (Sunlight effect)
     gl.uniform1i(u_lights[0].enabled, 1);
     gl.uniform4f(u_lights[0].position, -1.0, -1.0, -0.5, 0.0);
     gl.uniform3f(u_lights[0].color, 1.0 * intensityMultiplier, 0.95 * intensityMultiplier, 0.8 * intensityMultiplier);
@@ -203,7 +196,6 @@ function lights() {
     gl.uniform4f(u_lights[1].position, 2.0, 3.0, 2.0, 1.0);
     gl.uniform3f(u_lights[1].color, 1.0 * intensityMultiplier, 1.0 * intensityMultiplier, 1.0 * intensityMultiplier);
 
-    // Artistic Colored Light
     gl.uniform1i(u_lights[2].enabled, 1);
     gl.uniform4f(u_lights[2].position, -3.0, 1.0, 0.0, 1.0);
     gl.uniform3f(u_lights[2].color, 0.0, 0.0, 1.0 * intensityMultiplier);
@@ -213,11 +205,6 @@ function lights() {
     gl.uniform4f(u_lights[3].position, movingLightPosition[0], movingLightPosition[1], movingLightPosition[2], 1.0);
     gl.uniform3f(u_lights[3].color, intensityMultiplier * 2.0, intensityMultiplier * 1.0, 0.0); // Bright orange light
 }
-
-/**
-* Draws a floatingHouse figure using transformation from cubes and cylinders.
-* Note for every push their should be a pop. This resets the transformations
-*/
 
 function setDarkMode(isDarkMode) {
     darkMode = isDarkMode;
@@ -377,41 +364,16 @@ function floatingHouse() {
 
 }
 
-
-
-
-/**
-* Push a copy of the current modelview matrix onto the matrix stack.
-*/
+//Push matrix onto stack
 function pushMatrix() {
     matrixStack.push( mat4.clone(modelview) );
 }
 
-
-/**
-* Restore the modelview matrix to a value popped from the matrix stack.
-*/
+//Restore matrix
 function popMatrix() {
     modelview = matrixStack.pop();
 }
 
-<!-- As is no changes -->
-/**
-* Create one of the basic objects. The modelData holds the data for
-* an IFS using the structure from basic-objects-IFS.js. This function
-* creates VBOs to hold the coordinates, normal vectors, and indices
-* from the IFS, and it loads the data into those buffers. The function
-* creates a new object whose properties are the identifies of the
-* VBOs. The new object also has a function, render(), that can be called to
-* render the object, using all the data from the buffers. That object
-* is returned as the value of the function. (The second parameter,
-* xtraTranslate, is there because this program was ported from a Java
-* version where cylinders were created in a different position, with
-* the base on the xy-plane instead of with their center at the origin.
-* The xtraTranslate parameter is a 3-vector that is applied as a
-* translation to the rendered object. It is used to move the cylinders
-* into the position expected by the code that was ported from Java.)
-*/
 function createModel(modelData, xtraTranslate) {
     var model = {};
     model.coordsBuffer = gl.createBuffer();
@@ -429,12 +391,7 @@ function createModel(modelData, xtraTranslate) {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, model.indexBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, modelData.indices, gl.STATIC_DRAW);
 
-    model.render = function() { // This function will render the object.
-        // Since the buffer from which we are taking the coordinates and normals
-        // change each time an object is drawn, we have to use gl.vertexAttribPointer
-        // to specify the location of the data. And to do that, we must first
-        // bind the buffer that contains the data. Similarly, we have to
-        // bind this object's index buffer before calling gl.drawElements.
+    model.render = function() {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.coordsBuffer);
         gl.vertexAttribPointer(a_coords_loc, 3, gl.FLOAT, false, 0, 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
@@ -456,21 +413,9 @@ function createModel(modelData, xtraTranslate) {
     return model;
 }
 
-
-/* Creates a program for use in the WebGL context gl, and returns the
-* identifier for that program. If an error occurs while compiling or
-* linking the program, an exception of type String is thrown. The error
-* string contains the compilation or linking error. If no error occurs,
-* the program identifier is the return value of the function.
-* The second and third parameters are the id attributes for <script>
-* elementst that contain the source code for the vertex and fragment
-* shaders.
-*/
 function createProgram(gl, vertexShaderID, fragmentShaderID) {
     function getTextContent( elementID ) {
-        // This nested function retrieves the text content of an
-        // element on the web page. It is used here to get the shader
-        // source code from the script elements that contain it.
+        // Get shader source code
         var element = document.getElementById(elementID);
         var node = element.firstChild;
         var str = "";
@@ -514,7 +459,6 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
     return prog;
 }
 
-
 /* Initialize the WebGL context. Called from init() */
 function initGL() {
     var prog = createProgram(gl,"vshader-source","fshader-source");
@@ -522,7 +466,6 @@ function initGL() {
     gl.enable(gl.DEPTH_TEST);
 
     /* Get attribute and uniform locations */
-
     a_coords_loc = gl.getAttribLocation(prog, "a_coords");
     a_normal_loc = gl.getAttribLocation(prog, "a_normal");
     gl.enableVertexAttribArray(a_coords_loc);
@@ -550,17 +493,11 @@ function initGL() {
     gl.uniform1f( u_material.specularExponent, 16 );
     gl.uniform3f( u_material.emissiveColor, 0, 0, 0); // default, will be changed temporarily for some objects
 
-
     for (var i = 1; i < 4; i++) { // set defaults for lights
         gl.uniform1i( u_lights[i].enabled, 0 );
         gl.uniform4f( u_lights[i].position, 0, 0, 1, 0 );
         gl.uniform3f( u_lights[i].color, 1,1,1 );
     }
-
-    // Lights are set on in the draw() method
-
-
-
 } // end initGL()
 
 
@@ -569,12 +506,6 @@ function initGL() {
 
 
 var animating = false;
-
-/*
-This is where you control the animation by changing positions,
-and rotations values as needed.
-Trial and error works on the numbers. Graph paper design is more efficient.
-*/
 
 function frame() {
     if (animating) {
@@ -593,13 +524,7 @@ function setAnimating(run) {
     }
 }
 
-//-------------------------------------------------------------------------
-
-
-/**
-* initialization function that will be called when the page has loaded
-*/
-
+//----------------init called on page load---------------------------------------------
 
 function init() {
     try {
@@ -616,7 +541,7 @@ function init() {
         return;
     }
     try {
-        initGL(); // initialize the WebGL graphics context
+        initGL(); // Init WebGL graphics context
     }
     catch (e) {
         document.getElementById("message").innerHTML =
@@ -633,19 +558,15 @@ function init() {
         draw();
     }
 
-    // Not really using all of these
-    // As you create your scene use these or create from primitives
+    // Primitives
     torus = createModel(uvTorus(0.5,1,16,8)); // Create all the basic objects.
     sphere = createModel(uvSphere(1));
     cone = createModel(uvCone(),[0,0,.5]);
     cylinder = createModel(uvCylinder(),[0,0,1.5]);
     disk = createModel(uvCylinder(5.5,0.5,64),[0,0,.25]);
-    ring = createModel(ring(3.3,4.8,40));
     cube = createModel(cube());
-    // pyramid = createModel(uvCone(), [0,0,.5]);
 
-
-    // This controls the zoom and initial placement
+    // Controls the zoom and initial placement
     rotator = new TrackballRotator(canvas,function() {
     if (!animating)
         draw();
