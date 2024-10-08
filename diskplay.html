@@ -142,6 +142,7 @@ var u_modelview; // Locations for uniform matrices
 var u_projection;
 var u_normalMatrix;
 
+var movingLightAngle = 0; // Initialize angle for moving light
 var u_material; // An object tolds uniform locations for the material.
 var u_lights; // An array of objects that holds uniform locations for light properties.
 
@@ -171,14 +172,13 @@ function draw() {
 
 
 
-    mat4.perspective(projection, Math.PI/4, 1, 1, 50);
+    mat4.perspective(projection, Math.PI/2.5, 1, 1, 50);
     gl.uniformMatrix4fv(u_projection, false, projection );
 
     modelview = rotator.getViewMatrix();
 
     lights();
-
-    boxman();
+    floatingHouse();
 }
 
 
@@ -186,96 +186,180 @@ function lights() {
 
     // Three of four lights used, all enabled
     // Use lights to enhance models looks
-    gl.uniform1i( u_lights[0].enabled, 1 );
-    // Looking down z
-    gl.uniform4f( u_lights[0].position, 0,0,1,0 );
-    gl.uniform3f( u_lights[0].color, 1.0,1.0,1.0 );
-
-    gl.uniform1i( u_lights[1].enabled, 1 );
-    // Looking down X
-    gl.uniform4f( u_lights[1].position, 1,0,0,0 );
-    gl.uniform3f( u_lights[1].color, 0.0,1.0,0.0 );
-
-    gl.uniform1i( u_lights[2].enabled, 1 );
-    // Looking down Y
-    gl.uniform4f( u_lights[2].position, 0,1,0,0 );
-    gl.uniform3f( u_lights[2].color, 1.0,0.0,1.0 );
+    // Directional Light (Sunlight)
+    gl.uniform1i(u_lights[0].enabled, 1);
+    gl.uniform4f(u_lights[0].position, -1.0, -1.0, -0.5, 0.0); // Directional light (w = 0)
+    gl.uniform3f(u_lights[0].color, 1.0, 0.95, 0.8); // Warm sunlight color
 
 
-    currentColor = [ 0.3, 0.3, 0.3, 1 ];
+    gl.uniform1i(u_lights[1].enabled, 1);
+    gl.uniform4f(u_lights[1].position, 2.0, 3.0, 2.0, 1.0); // Point light (w = 1)
+    gl.uniform3f(u_lights[1].color, 1.0, 1.0, 1.0); // Soft white light
 
-    pushMatrix();
-    mat4.translate(modelview,modelview,[xval,yval,1]);//
-    mat4.scale(modelview,modelview,[0.4,0.4,0.4]);
+    gl.uniform1i(u_lights[2].enabled, 1);
+    gl.uniform4f(u_lights[2].position, -3.0, 1.0, 0.0, 1.0); // Point light on the left
+    gl.uniform3f(u_lights[2].color, 0.0, 0.0, 1.0); // Blue light
 
-    gl.uniform3f( u_material.emissiveColor, 0.7, 0.7, 0 );
-    // SHow the soccer ball
-    sphere.render();
-    // Modifying this material will change the Boxman look
-    gl.uniform3f( u_material.emissiveColor, 0, 0, 0 );
-    popMatrix();
-
-
+    gl.uniform1i(u_lights[3].enabled, 1);
+    var radius = 5.0;
+    var x = radius * Math.cos(movingLightAngle);
+    var z = radius * Math.sin(movingLightAngle);
+    gl.uniform4f(u_lights[3].position, x, 2.0, z, 1.0); // Animated position
+    gl.uniform3f(u_lights[3].color, 1.0, 1.0, 1.0); // Bright white light
+    
 }
 
 /**
-* Draws a boxman figure using transformation from cubes and cylinders.
+* Draws a floatingHouse figure using transformation from cubes and cylinders.
 * Note for every push their should be a pop. This resets the transformations
 */
-function boxman() {
+var earthAccentColors = {
+    earthBrown:    [0.40, 0.26, 0.13, 1.0],    // #654321
+    sandYellow:    [0.94, 0.90, 0.55, 1.0],    // #F0E68C
+    forestGreen:   [0.05, 0.36, 0.05, 1.0],    // #228B22
+    accentOrange:  [1.0, 0.27, 0.0, 1.0],      // #FF4500
+    accentTurquoise:[0.25, 0.88, 0.82, 1.0],   // #40E0D0
+    accentPink:    [1.0, 0.41, 0.70, 1.0],     // #FF69B4
+};
+
+function floatingHouse() {
+    //roof
     pushMatrix();
-    mat4.translate(modelview,modelview,[-1,3,0]);
+    mat4.translate(modelview,modelview,[0,3,0]);
+    mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
+    mat4.scale(modelview,modelview,[2.8,2.8,2.8]);
+    currentColor = earthAccentColors.forestGreen;
+    gl.uniform3f(u_material.specularColor, 1.0, 1.0, 1.0);
+    gl.uniform1f(u_material.specularExponent, 64.0);
+    cone.render();
+    popMatrix();
+    
+    //house
+    pushMatrix();
+    mat4.translate(modelview,modelview,[0,2,0]);
     mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
-    currentColor = [0.9,0.4,0.1,1];
+    mat4.scale(modelview,modelview,[2.0,2.0,2.0]);
+    currentColor = earthAccentColors.earthBrown;
+    gl.uniform4fv(u_material.diffuseColor, currentColor);
+    gl.uniform3f(u_material.specularColor, 0.1, 0.1, 0.1);  // Low specular reflectivity
+    gl.uniform1f(u_material.specularExponent, 16.0);  // Slight shininess
     cube.render();
     popMatrix();
-    // Neck
+
+    //door
     pushMatrix();
-    mat4.translate(modelview,modelview,[-1,2.9,0]);
+    mat4.translate(modelview,modelview,[0.5,2,1]);
     mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
-    mat4.scale(modelview,modelview,[0.5,0.7,0.5]);
-    currentColor = [0.9,0.4,0.1,1];
-    cylinder.render();
-    popMatrix();
-    // Body
-    pushMatrix();
-    mat4.translate(modelview,modelview,[-1,1.0,0]);
-    mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
-    mat4.scale(modelview,modelview,[1.5,1.5,1.5]);
-    currentColor = [0.9,0.0,0.1,1];
+    mat4.scale(modelview,modelview,[.5,.2,1.5]);
+    currentColor = earthAccentColors.forestGreen;
     cube.render();
     popMatrix();
-    // Arms
+
     pushMatrix();
-    mat4.translate(modelview,modelview,[-2.0,1.0,0]);
-    mat4.rotate(modelview,modelview,(90)/180*Math.PI,[0,1,0]);
-    mat4.scale(modelview,modelview,[1.0,.6,1.4]);
-    currentColor = [0.9,1.0,0.1,1];
+    mat4.translate(modelview,modelview,[-4,-.5,0]);
+    mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
+    mat4.rotate(modelview,modelview,(40)/180*Math.PI,[0,1,0]);
+    mat4.scale(modelview,modelview,[9,1,.2]);
+    currentColor = earthAccentColors.forestGreen;
+    gl.uniform1f(u_material.specularExponent, 150.0);
+    cube.render();
+    popMatrix();
+
+    pushMatrix();
+    mat4.translate(modelview,modelview,[4,-.5,0]);
+    mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
+    mat4.rotate(modelview,modelview,(-40)/180*Math.PI,[0,1,0]);
+    mat4.scale(modelview,modelview,[9,1,.2]);
+    currentColor = earthAccentColors.forestGreen;
+    gl.uniform4fv(u_material.diffuseColor, currentColor);
+    gl.uniform3f(u_material.specularColor, 1.0, 1.0, 1.0);  // Very low reflectivity
+    gl.uniform1f(u_material.specularExponent, 4.0);  
+    cube.render();
+    popMatrix();
+
+    //leg
+    pushMatrix();
+    mat4.translate(modelview,modelview,[0.6,4,-0.6]);
+    mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
+    mat4.scale(modelview,modelview,[0.6,0.6,3.0]);
+    currentColor = earthAccentColors.sandYellow;
+    gl.uniform4fv(u_material.diffuseColor, currentColor);
+    gl.uniform3f(u_material.specularColor, 1.0, 1.0, 1.0);  // High specular reflectivity (white)
+    gl.uniform1f(u_material.specularExponent, 128.0);  // Very shiny
     cylinder.render();
     popMatrix();
 
     pushMatrix();
-    mat4.translate(modelview,modelview,[-4.3,1.0,0]);
-    mat4.rotate(modelview,modelview,(90)/180*Math.PI,[0,1,0]);
-    mat4.scale(modelview,modelview,[1.0,.6,1.4]);
-    currentColor = [0.9,1.0,0.1,1];
-    cylinder.render();
-    popMatrix();
-    // Legs
-    pushMatrix();
-    mat4.translate(modelview,modelview,[-1.3,3.1,0]);
+    mat4.translate(modelview,modelview,[0.6,4,0.6]);
     mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
     mat4.scale(modelview,modelview,[0.6,0.6,3.0]);
-    currentColor = [0.0,1.0,0.1,1];
+    currentColor = earthAccentColors.sandYellow;
+    gl.uniform4fv(u_material.diffuseColor, currentColor);
+    gl.uniform3f(u_material.specularColor, 1.0, 1.0, 1.0);  // High specular reflectivity (white)
+    gl.uniform1f(u_material.specularExponent, 128.0);  // Very shiny
     cylinder.render();
     popMatrix();
 
-    mat4.translate(modelview,modelview,[-0.5,3.1,0]);
-    // Kval provides for rotating about x-axis providing a foot kicking simulation
-    mat4.rotate(modelview,modelview,(kval)/180*Math.PI,[1,0,0]);
+    pushMatrix();
+    mat4.translate(modelview,modelview,[-0.6,4,-0.6]);
+    mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
     mat4.scale(modelview,modelview,[0.6,0.6,3.0]);
-    currentColor = [0.0,1.0,0.1,1];
+    currentColor = earthAccentColors.sandYellow;
+    gl.uniform4fv(u_material.diffuseColor, currentColor);
+    gl.uniform3f(u_material.specularColor, 1.0, 1.0, 1.0);  // High specular reflectivity (white)
+    gl.uniform1f(u_material.specularExponent, 128.0);  // Very shiny
     cylinder.render();
+    popMatrix();
+
+    pushMatrix();
+    mat4.translate(modelview,modelview,[-0.6,4,0.6]);
+    mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
+    mat4.scale(modelview,modelview,[0.6,0.6,3.0]);
+    currentColor = earthAccentColors.sandYellow;
+    gl.uniform4fv(u_material.diffuseColor, currentColor);
+    gl.uniform3f(u_material.specularColor, 1.0, 1.0, 1.0);  // High specular reflectivity (white)
+    gl.uniform1f(u_material.specularExponent, 128.0);  // Very shiny
+    cylinder.render();
+    popMatrix();
+
+    pushMatrix();
+    mat4.translate(modelview,modelview,[0,-2.1,0.6]);
+    mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
+    mat4.scale(modelview,modelview,[.5,.5,.2]);
+    currentColor = earthAccentColors.sandYellow;
+    disk.render();
+    popMatrix();
+
+    pushMatrix();
+    mat4.translate(modelview,modelview,[0,-2.1,0.6]);
+    mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
+    mat4.scale(modelview,modelview,[5,5,5]);
+    currentColor = earthAccentColors.forestGreen;
+    gl.uniform4fv(u_material.diffuseColor, currentColor);
+    gl.uniform3f(u_material.specularColor, 0.7, 0.7, 0.7);  // Medium-high specular reflectivity
+    gl.uniform1f(u_material.specularExponent, 32.0);  // Glossy surface
+    torus.render();
+    popMatrix();
+
+    pushMatrix();
+    mat4.translate(modelview,modelview,[0,-3.5,0.6]);
+    mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
+    mat4.scale(modelview,modelview,[2.5,2.5,.2]);
+    currentColor = [0.35, 0.35, 1.0, 0.7]
+    disk.render();
+    popMatrix();
+
+    pushMatrix();
+    mat4.translate(modelview,modelview,[-7,8,-4]);
+    mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
+    // Glowing Sphere
+    currentColor = [0.0, 0.0, 0.0, 1.0];  // Base color (black)
+    gl.uniform4fv(u_material.diffuseColor, currentColor);
+    gl.uniform3f(u_material.emissiveColor, 1.0, 0.5, 0.0);  // Bright orange glow
+    gl.uniform3f(u_material.specularColor, 0.0, 0.0, 0.0);  // No specular reflection
+    sphere.render();
+    gl.uniform3f(u_material.emissiveColor, 0.0, 0.0, 0.0);  // Reset emissive color
+
     popMatrix();
 
 }
@@ -405,6 +489,7 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
     if ( ! gl.getShaderParameter(fsh, gl.COMPILE_STATUS) ) {
         throw "Error in fragment shader: " + gl.getShaderInfoLog(fsh);
     }
+
     var prog = gl.createProgram();
     gl.attachShader(prog,vsh);
     gl.attachShader(prog, fsh);
@@ -481,20 +566,7 @@ Trial and error works on the numbers. Graph paper design is more efficient.
 function frame() {
     if (animating) {
         frameNumber += 1;
-        // Positions of the soccer ball
-        xval += 0.01;
-        yval -= 0.01;
-        // Rotation of kick leg
-        // Not perfect by anymeans but Okay for at least one viewing angle.
-        kval -=.1;
-        if (xval > 8.5 || yval < -8.5) {
-            xval= -0.7;
-            yval= -2.1;
-            kval = 90;
-        }
-        if (kval < 45) {
-            kval = 45; // Don't overextend the soccer all
-        }
+        movingLightAngle += 0.02;
         draw();
         requestAnimationFrame(frame);
     }
@@ -514,6 +586,8 @@ function setAnimating(run) {
 /**
 * initialization function that will be called when the page has loaded
 */
+
+
 function init() {
     try {
         var canvas = document.getElementById("webglcanvas");
@@ -557,6 +631,8 @@ function init() {
     disk = createModel(uvCylinder(5.5,0.5,64),[0,0,.25]);
     ring = createModel(ring(3.3,4.8,40));
     cube = createModel(cube());
+    // pyramid = createModel(uvCone(), [0,0,.5]);
+
 
     // This controls the zoom and initial placement
     rotator = new TrackballRotator(canvas,function() {
@@ -587,7 +663,7 @@ function init() {
 
     <div>
 
-        <canvas width=600 height=600 id="webglcanvas" style="background-color:blue"></canvas>
+        <canvas width=650 height=650 id="webglcanvas" style="background-color:blue"></canvas>
 
     </div>
 </body>
