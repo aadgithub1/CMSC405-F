@@ -212,7 +212,6 @@ function lights() {
     gl.uniform1i(u_lights[3].enabled, 1);
     gl.uniform4f(u_lights[3].position, movingLightPosition[0], movingLightPosition[1], movingLightPosition[2], 1.0);
     gl.uniform3f(u_lights[3].color, intensityMultiplier * 2.0, intensityMultiplier * 1.0, 0.0); // Bright orange light
-    
 }
 
 /**
@@ -628,6 +627,7 @@ function init() {
     document.getElementById("reset").onclick = function() {
         frameNumber = 0;
         movingLightAngle = 0;
+        rotator.setView(17,[0,1,2]);
         animating = false;
         document.getElementById("animCheck").checked = false;
         draw();
@@ -672,7 +672,6 @@ function init() {
 
     <p>
         <label><input type="checkbox" id="darkModeCheck" onchange="setDarkMode(this.checked)">Dark Mode</label>
-        <button id="reset" style="margin-left:40px">Reset</button>
     </p>
 
 
