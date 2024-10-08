@@ -1,18 +1,7 @@
 <!DOCTYPE html>
 <meta charset="UTF-8">
 <html>
-<!--
-A demo of lighting and hierarchical modeling using WebGL.
 
-Emissive color is used to make the lights seem to glow yellow when
-they are turned on.
-
-Derived from code available from Diskworld-2.html
-
-The Shaders are still complex but have been simplified slightly.
-
-
--->
 <head>
 <title>Floating House</title>
 <style>
@@ -25,8 +14,7 @@ The Shaders are still complex but have been simplified slightly.
     }
 </style>
 
-<!-- This shader is exactly as provided -->
-<script src="basic-object-model-IFS.js"></script>
+<script src="basic-object-models-IFS.js"></script>
 <script src="gl-matrix-min.js"></script>
 <script src="trackball-rotator.js"></script>
 
@@ -49,8 +37,6 @@ The Shaders are still complex but have been simplified slightly.
     }
 </script>
 
-<!-- This shader has simplified lighting model and equation
-Notice the light only has 3 properties now -->
 <script type="x-shader/x-fragment" id="fshader-source">
     #ifdef GL_FRAGMENT_PRECISION_HIGH
         precision highp float;
@@ -124,14 +110,9 @@ Notice the light only has 3 properties now -->
     }
 </script>
 
-
-<script src="gl-matrix-min.js"></script>
-<script src="trackball-rotator.js"></script>
-<script src="basic-object-models-IFS.js"></script>
 <script>
 
 "use strict";
-
 
 var gl; // The webgl context.
 
@@ -212,12 +193,12 @@ function setDarkMode(isDarkMode) {
 }
 
 var earthAccentColors = {
-    earthBrown:    [0.40, 0.26, 0.13, 1.0],    // #654321
-    sandYellow:    [0.94, 0.90, 0.55, 1.0],    // #F0E68C
-    forestGreen:   [0.05, 0.36, 0.05, 1.0],    // #228B22
-    accentOrange:  [1.0, 0.27, 0.0, 1.0],      // #FF4500
-    accentTurquoise:[0.25, 0.88, 0.82, 1.0],   // #40E0D0
-    accentPink:    [1.0, 0.41, 0.70, 1.0],     // #FF69B4
+    earthBrown:    [0.40, 0.26, 0.13, 1.0],
+    sandYellow:    [0.94, 0.90, 0.55, 1.0],
+    forestGreen:   [0.05, 0.36, 0.05, 1.0],
+    accentOrange:  [1.0, 0.27, 0.0, 1.0],  
+    accentTurquoise:[0.25, 0.88, 0.82, 1.0],
+    accentPink:    [1.0, 0.41, 0.70, 1.0], 
 };
 
 function floatingHouse() {
@@ -253,6 +234,7 @@ function floatingHouse() {
     cube.render();
     popMatrix();
 
+    //ramp
     pushMatrix();
     mat4.translate(modelview,modelview,[-4,-.5,0]);
     mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
@@ -263,6 +245,7 @@ function floatingHouse() {
     cube.render();
     popMatrix();
 
+    //slide
     pushMatrix();
     mat4.translate(modelview,modelview,[4,-.5,0]);
     mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
@@ -275,7 +258,7 @@ function floatingHouse() {
     cube.render();
     popMatrix();
 
-    //leg
+    //legs
     pushMatrix();
     mat4.translate(modelview,modelview,[0.6,4,-0.6]);
     mat4.rotate(modelview,modelview,(90)/180*Math.PI,[1,0,0]);
@@ -320,6 +303,7 @@ function floatingHouse() {
     cylinder.render();
     popMatrix();
 
+    //place for house
     pushMatrix();
     mat4.translate(modelview,modelview,[0,-2.1,0.6]);
     mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
@@ -328,6 +312,7 @@ function floatingHouse() {
     disk.render();
     popMatrix();
 
+    // Raft
     pushMatrix();
     mat4.translate(modelview,modelview,[0,-2.1,0.6]);
     mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
@@ -339,6 +324,7 @@ function floatingHouse() {
     torus.render();
     popMatrix();
 
+    // Ocean
     pushMatrix();
     mat4.translate(modelview,modelview,[0,-3.5,0.6]);
     mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
@@ -350,10 +336,10 @@ function floatingHouse() {
     disk.render();
     popMatrix();
 
+    // Sun
     pushMatrix();
     mat4.translate(modelview,modelview,movingLightPosition);
     mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
-    // Glowing Sphere
     currentColor = [0.0, 0.0, 0.0, 1.0];  // Base color (black)
     gl.uniform4fv(u_material.diffuseColor, currentColor);
     gl.uniform3f(u_material.emissiveColor, 1.0, 0.5, 0.0);  // Bright orange glow
@@ -500,10 +486,7 @@ function initGL() {
     }
 } // end initGL()
 
-
-
 //--------------------------------- animation framework ------------------------------
-
 
 var animating = false;
 
@@ -571,7 +554,6 @@ function init() {
     if (!animating)
         draw();
     },17,[0,1,2]);
-
     draw();
 }
 
@@ -580,7 +562,6 @@ function init() {
 <body onload="init()">
 
     <h2>Floating House</h2>
-
 
     <noscript><hr><h3>This page requires Javascript and a web browser that supports WebGL</h3><hr></noscript>
 
@@ -597,9 +578,7 @@ function init() {
 
 
     <div>
-
         <canvas width=650 height=650 id="webglcanvas" style="background-color:blue"></canvas>
-
     </div>
 </body>
 </html>
