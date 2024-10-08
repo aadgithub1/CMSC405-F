@@ -14,7 +14,7 @@ The Shaders are still complex but have been simplified slightly.
 
 -->
 <head>
-<title>Kicking the Soccer Ball</title>
+<title>Floating House</title>
 <style>
     body {
         background-color: #EEEEEE;
@@ -142,6 +142,8 @@ var u_modelview; // Locations for uniform matrices
 var u_projection;
 var u_normalMatrix;
 
+var darkMode = false;
+var movingLightPosition = vec3.fromValues(-7, 8, -4);
 var movingLightAngle = 0; // Initialize angle for moving light
 var u_material; // An object tolds uniform locations for the material.
 var u_lights; // An array of objects that holds uniform locations for light properties.
@@ -177,6 +179,11 @@ function draw() {
 
     modelview = rotator.getViewMatrix();
 
+    var radius = 10;  // Adjust as needed
+    var x = radius * Math.cos(movingLightAngle);
+    var z = radius * Math.sin(movingLightAngle);
+    movingLightPosition = vec3.fromValues(x, 8, z);  // Keep Y coordinate at 8
+
     lights();
     floatingHouse();
 }
@@ -184,28 +191,27 @@ function draw() {
 
 function lights() {
 
-    // Three of four lights used, all enabled
-    // Use lights to enhance models looks
+    var intensityMultiplier = darkMode ? 0.2 : 1.0;  // Reduce intensity in dark mode
+
     // Directional Light (Sunlight)
     gl.uniform1i(u_lights[0].enabled, 1);
-    gl.uniform4f(u_lights[0].position, -1.0, -1.0, -0.5, 0.0); // Directional light (w = 0)
-    gl.uniform3f(u_lights[0].color, 1.0, 0.95, 0.8); // Warm sunlight color
+    gl.uniform4f(u_lights[0].position, -1.0, -1.0, -0.5, 0.0);
+    gl.uniform3f(u_lights[0].color, 1.0 * intensityMultiplier, 0.95 * intensityMultiplier, 0.8 * intensityMultiplier);
 
-
+    // Point Light (Lamp)
     gl.uniform1i(u_lights[1].enabled, 1);
-    gl.uniform4f(u_lights[1].position, 2.0, 3.0, 2.0, 1.0); // Point light (w = 1)
-    gl.uniform3f(u_lights[1].color, 1.0, 1.0, 1.0); // Soft white light
+    gl.uniform4f(u_lights[1].position, 2.0, 3.0, 2.0, 1.0);
+    gl.uniform3f(u_lights[1].color, 1.0 * intensityMultiplier, 1.0 * intensityMultiplier, 1.0 * intensityMultiplier);
 
+    // Artistic Colored Light
     gl.uniform1i(u_lights[2].enabled, 1);
-    gl.uniform4f(u_lights[2].position, -3.0, 1.0, 0.0, 1.0); // Point light on the left
-    gl.uniform3f(u_lights[2].color, 0.0, 0.0, 1.0); // Blue light
+    gl.uniform4f(u_lights[2].position, -3.0, 1.0, 0.0, 1.0);
+    gl.uniform3f(u_lights[2].color, 0.0, 0.0, 1.0 * intensityMultiplier);
 
+    // Light Source at Sphere Position
     gl.uniform1i(u_lights[3].enabled, 1);
-    var radius = 5.0;
-    var x = radius * Math.cos(movingLightAngle);
-    var z = radius * Math.sin(movingLightAngle);
-    gl.uniform4f(u_lights[3].position, x, 2.0, z, 1.0); // Animated position
-    gl.uniform3f(u_lights[3].color, 1.0, 1.0, 1.0); // Bright white light
+    gl.uniform4f(u_lights[3].position, movingLightPosition[0], movingLightPosition[1], movingLightPosition[2], 1.0);
+    gl.uniform3f(u_lights[3].color, intensityMultiplier * 2.0, intensityMultiplier * 1.0, 0.0); // Bright orange light
     
 }
 
@@ -213,6 +219,12 @@ function lights() {
 * Draws a floatingHouse figure using transformation from cubes and cylinders.
 * Note for every push their should be a pop. This resets the transformations
 */
+
+function setDarkMode(isDarkMode) {
+    darkMode = isDarkMode;
+    draw();  // Redraw the scene with updated lighting
+}
+
 var earthAccentColors = {
     earthBrown:    [0.40, 0.26, 0.13, 1.0],    // #654321
     sandYellow:    [0.94, 0.90, 0.55, 1.0],    // #F0E68C
@@ -241,7 +253,7 @@ function floatingHouse() {
     mat4.scale(modelview,modelview,[2.0,2.0,2.0]);
     currentColor = earthAccentColors.earthBrown;
     gl.uniform4fv(u_material.diffuseColor, currentColor);
-    gl.uniform3f(u_material.specularColor, 0.1, 0.1, 0.1);  // Low specular reflectivity
+    gl.uniform3f(u_material.specularColor, 0.5, 0.5, 0.5);  // Low specular reflectivity
     gl.uniform1f(u_material.specularExponent, 16.0);  // Slight shininess
     cube.render();
     popMatrix();
@@ -346,11 +358,14 @@ function floatingHouse() {
     mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
     mat4.scale(modelview,modelview,[2.5,2.5,.2]);
     currentColor = [0.35, 0.35, 1.0, 0.7]
+    gl.uniform4fv(u_material.diffuseColor, currentColor);
+    gl.uniform3f(u_material.specularColor, 0.9, 0.9, 0.9);
+    gl.uniform1f(u_material.specularExponent, 64.0); 
     disk.render();
     popMatrix();
 
     pushMatrix();
-    mat4.translate(modelview,modelview,[-7,8,-4]);
+    mat4.translate(modelview,modelview,movingLightPosition);
     mat4.rotate(modelview,modelview,-Math.PI/2,[1,0,0]);
     // Glowing Sphere
     currentColor = [0.0, 0.0, 0.0, 1.0];  // Base color (black)
@@ -359,7 +374,6 @@ function floatingHouse() {
     gl.uniform3f(u_material.specularColor, 0.0, 0.0, 0.0);  // No specular reflection
     sphere.render();
     gl.uniform3f(u_material.emissiveColor, 0.0, 0.0, 0.0);  // Reset emissive color
-
     popMatrix();
 
 }
@@ -612,11 +626,8 @@ function init() {
     }
     document.getElementById("animCheck").checked = false;
     document.getElementById("reset").onclick = function() {
-        rotator.setView(17,[0,1,2]);
         frameNumber = 0;
-        // Initialize soccer ball positions
-        xval = -0.7;
-        yval = -2.1;
+        movingLightAngle = 0;
         animating = false;
         document.getElementById("animCheck").checked = false;
         draw();
@@ -647,16 +658,20 @@ function init() {
 </head>
 <body onload="init()">
 
-    <h2>Kicking the soccer Ball</h2>
+    <h2>Floating House</h2>
 
 
     <noscript><hr><h3>This page requires Javascript and a web browser that supports WebGL</h3><hr></noscript>
 
     <p id="message" style="font-weight:bold">Drag your mouse on the model to rotate it.<br>
-    Make sure to try the animation, and let it run long enough to see the nighttime view!</p>
 
     <p>
-        <label><input type="checkbox" id="animCheck" onchange="setAnimating(this.checked)">Kick Ball</label>
+        <label><input type="checkbox" id="animCheck" onchange="setAnimating(this.checked)">Animate</label>
+        <button id="reset" style="margin-left:40px">Reset</button>
+    </p>
+
+    <p>
+        <label><input type="checkbox" id="darkModeCheck" onchange="setDarkMode(this.checked)">Dark Mode</label>
         <button id="reset" style="margin-left:40px">Reset</button>
     </p>
 
